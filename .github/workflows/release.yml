@@ -1,0 +1,29 @@
+name: Release Windows app
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Validate version and publish
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content ZaloDesk.csproj
+          $version = $project.Project.PropertyGroup.Version
+          if ($env:GITHUB_REF_NAME -ne "v$version") { throw 'Tag must match project version' }
+          dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist
+          if ($LASTEXITCODE -ne 0) { throw 'Publish failed' }
+          $hash = (Get-FileHash dist/ZaloDesk.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content dist/ZaloDesk.exe.sha256 "$hash  ZaloDesk.exe" -Encoding ascii
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create $env:GITHUB_REF_NAME dist/ZaloDesk.exe dist/ZaloDesk.exe.sha256 --verify-tag --title "ZaloDesk $env:GITHUB_REF_NAME" --generate-notes

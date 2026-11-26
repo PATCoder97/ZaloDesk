@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const KEY = '__zaloDeskV2', STORE = 'zalodesk.settings.v2';
-  const VERSION = '0.4.22';
+  const VERSION = '0.4.23';
   const SIGNATURE = 'Riêng tư|Giao diện|Công cụ|Cài đặt';
   window.__zaloDeskV1?.dispose();
   if (window[KEY]?.version === VERSION && window[KEY]?.signature === SIGNATURE) return window[KEY].mount() ? 'mounted' : 'waiting';

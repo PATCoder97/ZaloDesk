@@ -15,6 +15,8 @@ public sealed class MainForm : Form
     private bool startInTray;
     private bool connectionStarted;
     private bool quitting;
+    private bool checkingUpdate;
+    private readonly System.Windows.Forms.Timer updateTimer = new() { Interval = 24 * 60 * 60 * 1000 };
 
     public MainForm(bool startInTray = false)
     {
@@ -22,13 +24,13 @@ public sealed class MainForm : Form
         using (var iconStream = typeof(MainForm).Assembly.GetManifestResourceStream("ZaloDesk.AppIcon")!)
         using (var sourceIcon = new Icon(iconStream, new Size(32, 32))) appIcon = (Icon)sourceIcon.Clone();
         Icon = appIcon;
-        Text = "ZaloDesk"; ClientSize = new Size(360, 258);
+        Text = "ZaloDesk " + AppUpdate.Current.ToString(3); ClientSize = new Size(360, 290);
         FormBorderStyle = FormBorderStyle.FixedSingle; MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen; Font = new Font("Segoe UI", 10);
         Padding = new Padding(18); BackColor = Color.White; ForeColor = Color.FromArgb(32, 39, 48);
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, Margin = Padding.Empty, Padding = Padding.Empty };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7, Margin = Padding.Empty, Padding = Padding.Empty };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        foreach (var height in new[] { 32, 32, 42, 30, 34 }) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+        foreach (var height in new[] { 32, 32, 42, 30, 34, 32 }) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         var title = new Label { Text = "ZaloDesk", Font = new Font("Segoe UI", 16, FontStyle.Bold), Dock = DockStyle.Fill, Margin = Padding.Empty };
         var statusRow = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty };
@@ -54,7 +56,9 @@ public sealed class MainForm : Form
             }
         };
         statusTip.SetToolTip(startup, "Tự chạy ở khay hệ thống sau khi đăng nhập Windows.");
-        layout.Controls.Add(title, 0, 0); layout.Controls.Add(statusRow, 0, 1); layout.Controls.Add(help, 0, 2); layout.Controls.Add(startup, 0, 3); layout.Controls.Add(buttons, 0, 4); layout.Controls.Add(footer, 0, 5);
+        var update = new Button { Text = "Kiểm tra cập nhật", Dock = DockStyle.Fill, Margin = new Padding(0, 4, 0, 0), Cursor = Cursors.Hand };
+        update.Click += async (_, _) => await CheckUpdate(false);
+        layout.Controls.Add(title, 0, 0); layout.Controls.Add(statusRow, 0, 1); layout.Controls.Add(help, 0, 2); layout.Controls.Add(startup, 0, 3); layout.Controls.Add(buttons, 0, 4); layout.Controls.Add(update, 0, 5); layout.Controls.Add(footer, 0, 6);
         Controls.Add(layout);
         var menu = new ContextMenuStrip { ShowImageMargin = true, ImageScalingSize = new Size(16, 16) };
         Bitmap openImage;
@@ -62,6 +66,7 @@ public sealed class MainForm : Form
         using (var icon = new Icon(stream, new Size(16, 16))) openImage = icon.ToBitmap();
         var exitImage = CreateExitMenuImage();
         menu.Items.Add("Mở ZaloDesk", openImage, (_, _) => Restore());
+        menu.Items.Add("Kiểm tra cập nhật", null, async (_, _) => await CheckUpdate(false));
         menu.Items.Add("Thoát", exitImage, (_, _) => { quitting = true; Close(); });
         tray = new NotifyIcon { Text = "ZaloDesk", Icon = appIcon, Visible = true, ContextMenuStrip = menu };
         tray.DoubleClick += (_, _) => Restore();
@@ -69,7 +74,7 @@ public sealed class MainForm : Form
         Shown += (_, _) => StartConnection();
         FormClosing += (_, e) => {
             if (!quitting && e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); return; }
-            stop.Cancel(); tray.Visible = false; tray.Dispose(); statusTip.Dispose();
+            updateTimer.Dispose(); stop.Cancel(); tray.Visible = false; tray.Dispose(); statusTip.Dispose();
         };
         Disposed += (_, _) => { menu.Dispose(); openImage.Dispose(); exitImage.Dispose(); appIcon.Dispose(); };
     }
@@ -90,7 +95,26 @@ public sealed class MainForm : Form
     {
         if (connectionStarted) return;
         connectionStarted = true;
+        updateTimer.Tick += async (_, _) => await CheckUpdate(true);
+        updateTimer.Start();
+        _ = CheckUpdate(true);
         await connection.RunAsync(UpdateStatus, stop.Token);
+    }
+
+    private async Task CheckUpdate(bool silent)
+    {
+        if (checkingUpdate || quitting) return;
+        checkingUpdate = true;
+        try
+        {
+            if (await AppUpdate.CheckAsync(this, silent, stop.Token)) { quitting = true; Close(); }
+        }
+        catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            if (!silent && !IsDisposed) MessageBox.Show(this, "Không kiểm tra/cập nhật được: " + ex.Message, "ZaloDesk", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        finally { checkingUpdate = false; }
     }
 
     private static Bitmap CreateExitMenuImage()

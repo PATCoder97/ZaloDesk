@@ -1,5 +1,11 @@
 # ZaloDesk
 
+Tải ứng dụng Windows: [bản phát hành mới nhất](https://github.com/PATCoder97/ZaloDesk/releases/latest).
+
+Bản 0.4.23 thêm cập nhật từ GitHub Releases. App kiểm tra khi khởi động và mỗi 24 giờ; bạn cũng có thể bấm **Kiểm tra cập nhật** trong cửa sổ hoặc menu khay. Khi có bản mới, xác nhận để tải, kiểm tra SHA-256 và khởi động lại. File được thay ngay tại đường dẫn đang dùng, giữ nguyên cấu hình khởi động Windows. Bản cũ được lưu cạnh EXE với đuôi `.previous`. Cần có quyền ghi vào thư mục ứng dụng và kết nối GitHub; lỗi mạng không ảnh hưởng kết nối Zalo.
+
+Để phát hành bản tiếp theo: cập nhật phiên bản trong `ZaloDesk.csproj` và `Assets/menu.js`, commit rồi push tag `vX.Y.Z`. GitHub Actions tự build và đính kèm `ZaloDesk.exe` cùng checksum vào Release. Người dùng tải file EXE trong Release; **Download ZIP** chỉ chứa mã nguồn.
+
 Copyright © 2026 HAVY.
 
 Bản 0.4.22 đổi Lorem ipsum sang thay trực tiếp các nút chữ hiển thị, giữ nền và định dạng gốc. Rê chuột, tạm tắt hoặc đổi hiệu ứng sẽ khôi phục chữ thật; tin nhắn cập nhật được theo dõi và khôi phục theo nội dung mới nhất. Ảnh/media vẫn làm mờ khi bật che chat.
